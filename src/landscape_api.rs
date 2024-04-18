@@ -1,7 +1,8 @@
 use base64::{engine::general_purpose, Engine as _};
 use chrono::Utc;
 use hmac::{Hmac, Mac};
-use serde_derive::Deserialize;
+use serde_derive::{Deserialize, Serialize};
+use serde_json::Value;
 use sha2::Sha256;
 use std::{
     collections::{BTreeMap, HashMap},
@@ -11,7 +12,7 @@ use std::{
 };
 use url::Url;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Script {
     pub username: String,
     pub time_limit: u32,
@@ -22,18 +23,18 @@ pub struct Script {
     pub id: u32,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Creator {
     pub id: u32,
     pub name: String,
     pub email: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ScriptExec {
     pub computer_id: Option<String>,
-    pub creation_time: String,
-    pub creator: Creator,
+    pub creation_time: Option<String>,
+    pub creator: Option<Creator>,
     pub id: u32,
     pub parent_id: Option<String>,
     pub summary: String,
@@ -47,26 +48,51 @@ pub struct Api {
     api_secret: String,
 }
 
+// #[allow(dead_code)]
+// #[derive(Debug, Deserialize, Serialize)]
+// pub struct Computer {
+//     comment: Option<String>,
+//     total_swap: Option<i32>,
+//     total_memory: Option<i32>,
+//     annotations: Option<HashMap<String, String>>,
+//     title: Option<String>,
+//     last_ping_time: Option<String>,
+//     hostname: Option<String>,
+//     container_info: Option<String>,
+//     last_exchange_time: Option<String>,
+//     update_manager_prompt: Option<String>,
+//     tags: Option<Vec<String>>,
+//     cloud_instance_metadata: HashMap<String, String>, // Assuming String values. Adjust as needed.
+//     access_group: Option<String>,
+//     distribution: Option<String>,
+//     id: i32,
+//     reboot_required_flag: bool,
+//     vm_info: Option<String>,
+// }
+
 #[allow(dead_code)]
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Computer {
-    comment: Option<String>,
-    total_swap: Option<i32>,
-    total_memory: Option<i32>,
-    annotations: Option<HashMap<String, String>>,
+    id: i32,
+    cloud_instance_metadata: HashMap<String, String>,
+    reboot_required_flag: bool,
     title: Option<String>,
-    last_ping_time: Option<String>,
+    comment: Option<String>,
     hostname: Option<String>,
-    container_info: Option<String>,
-    last_exchange_time: Option<String>,
+    total_memory: Option<i32>,
+    total_swap: Option<i32>,
     update_manager_prompt: Option<String>,
+    clone_id: Option<i32>,
+    secrets_name: Option<String>,
+    last_exchange_time: Option<String>,
+    last_ping_time: Option<String>,
     tags: Option<Vec<String>>,
-    cloud_instance_metadata: HashMap<String, String>, // Assuming String values. Adjust as needed.
     access_group: Option<String>,
     distribution: Option<String>,
-    id: i32,
-    reboot_required_flag: bool,
     vm_info: Option<String>,
+    container_info: Option<String>,
+    ubuntu_pro_info: Option<Value>,
+    annotations: Option<HashMap<String, String>>,
 }
 
 impl Api {
@@ -138,9 +164,9 @@ impl Api {
                 encode_rfc3986(&format!("{}$${}", filename, encoded)),
             );
 
-            self.sign_api_call("POST", &mut map);
+            self.sign_api_call("GET", &mut map);
 
-            let mut req = minreq::post(&self.api_uri);
+            let mut req = minreq::get(&self.api_uri);
             for (key, value) in map {
                 req = req.with_param(&key, &value);
             }
@@ -164,9 +190,9 @@ impl Api {
             let filename = path.file_name().unwrap().to_str().unwrap();
             map.insert("filename".to_string(), filename.to_string());
 
-            self.sign_api_call("POST", &mut map);
+            self.sign_api_call("GET", &mut map);
 
-            let mut req = minreq::post(&self.api_uri);
+            let mut req = minreq::get(&self.api_uri);
             for (key, value) in map {
                 req = req.with_param(&key, &value);
             }
@@ -210,7 +236,7 @@ impl Api {
                 id: s.id,
             })
         } else {
-            panic!("Script not found")
+            None
         }
     }
 
@@ -222,16 +248,15 @@ impl Api {
 
         map.insert("action".to_string(), "GetScripts".to_string());
 
-        self.sign_api_call("POST", &mut map);
+        self.sign_api_call("GET", &mut map);
 
-        let mut req = minreq::post(&self.api_uri);
+        let mut req = minreq::get(&self.api_uri);
         for (key, value) in map {
             req = req.with_param(&key, &value);
         }
 
         let res = req.send().unwrap();
 
-        // res.as_str().unwrap().to_string()
         res.json::<Vec<Script>>().unwrap()
     }
 
@@ -248,15 +273,16 @@ impl Api {
             map.insert("query".to_string(), host_query.to_string());
             map.insert("script_id".to_string(), script_id.to_string());
 
-            self.sign_api_call("POST", &mut map);
+            self.sign_api_call("GET", &mut map);
 
-            let mut req = minreq::post(&self.api_uri);
+            let mut req = minreq::get(&self.api_uri);
             for (key, value) in map {
                 req = req.with_param(&key, &value);
             }
             // dbg!(&req);
             let res = req.send().unwrap();
 
+            dbg!(&res.as_str());
             res.json::<ScriptExec>().unwrap()
         } else {
             panic!("Script not found")
@@ -316,9 +342,9 @@ impl Api {
 
         map.insert("action".to_string(), "GetComputers".to_string());
 
-        self.sign_api_call("POST", &mut map);
+        self.sign_api_call("GET", &mut map);
 
-        let mut req = minreq::post(&self.api_uri);
+        let mut req = minreq::get(&self.api_uri);
         for (key, value) in map {
             req = req.with_param(&key, &value);
         }

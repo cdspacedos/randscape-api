@@ -13,8 +13,8 @@ use structopt::StructOpt;
 )]
 struct CreateScriptAttachment {
     #[structopt(help = "Upload the attachment to the script")]
-    title: String,
-    script_name: PathBuf,
+    script_title: String,
+    attachment_name: PathBuf,
 }
 
 #[derive(Debug, StructOpt)]
@@ -59,13 +59,28 @@ fn main() {
     let opt = Command::from_args();
 
     match opt {
-        Command::GetScript { title } => println!("{:#?}", _api.get_script(&title).unwrap()),
+        Command::GetScript { title } => {
+            if let Some(script) = _api.get_script(&title) {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&script).expect("Failed to serialize")
+                )
+            } else {
+                println!("Script not found")
+            }
+        }
         Command::GetScripts {} => println!("{:#?}", _api.get_scripts()),
         Command::RemoveScriptAttachment { title, script_name } => {
             println!("{}", _api.remove_script_attachment(&title, script_name))
         }
-        Command::CreateScriptAttachment(CreateScriptAttachment { title, script_name }) => {
-            println!("{}", _api.create_script_attachment(&title, &script_name))
+        Command::CreateScriptAttachment(CreateScriptAttachment {
+            script_title,
+            attachment_name,
+        }) => {
+            println!(
+                "{}",
+                _api.create_script_attachment(&script_title, &attachment_name)
+            )
         }
         Command::GetScriptAttachments { title } => _api
             .get_script_attachments(&title)
@@ -76,7 +91,10 @@ fn main() {
             println!("{:#?}", _api.execute_script(&query, &title))
         }
         Command::GetAllHosts => {
-            println!("{:#?}", _api.get_all_hosts())
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&_api.get_all_hosts()).expect("Failed to serialize")
+            )
         }
     }
 }
