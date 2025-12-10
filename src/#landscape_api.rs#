@@ -1,3 +1,4 @@
+use base64::{engine::general_purpose, Engine as _};
 use chrono::Utc;
 use hmac::{Hmac, Mac};
 use serde_derive::{Deserialize, Serialize};
@@ -150,8 +151,7 @@ impl Api {
 
         // let content = std::fs::read_to_string(path).expect("Unable to read file");
 
-        //let encoded = general_purpose::STANDARD.encode(&content);
-        let encoded = base64::encode(&content);
+        let encoded = general_purpose::STANDARD.encode(&content);
 
         if let Some(script_id) = self.get_script(scriptname) {
             let mut map = BTreeMap::new();
@@ -221,10 +221,8 @@ impl Api {
     pub fn get_script(&self, name: &str) -> Option<Script> {
         let scripts = self.get_scripts();
 
-        scripts
-            .iter()
-            .find(|s| s.title.starts_with(name))
-            .map(|s| Script {
+        if let Some(s) = scripts.iter().find(|s| s.title.starts_with(name)) {
+            Some(Script {
                 username: s.username.clone(),
                 title: s.title.clone(),
                 time_limit: s.time_limit,
@@ -237,6 +235,9 @@ impl Api {
                 access_group: s.access_group.clone(),
                 id: s.id,
             })
+        } else {
+            None
+        }
     }
 
     //
@@ -328,8 +329,7 @@ impl Api {
         let content = hmac.finalize().into_bytes();
 
         // Step 4: Convert to Base64
-        //let signature = general_purpose::STANDARD.encode(content);
-        let signature = base64::encode(&content);
+        let signature = general_purpose::STANDARD.encode(content);
 
         Ok(signature)
     }
