@@ -4,59 +4,61 @@ use dotenvy::dotenv;
 mod landscape_api;
 use landscape_api::*;
 
-use structopt::StructOpt;
+use clap::{Args, Parser, Subcommand};
 
-#[derive(Debug, StructOpt)]
-#[structopt(
-    name = "randscape-register",
-    about = "The landscape-api command that actually works"
-)]
+#[derive(Debug, Args)]
 struct CreateScriptAttachment {
-    #[structopt(help = "Upload the attachment to the script")]
+    #[arg(help = "Upload the attachment to the script")]
     script_title: String,
     attachment_name: PathBuf,
 }
 
-#[derive(Debug, StructOpt)]
-#[structopt(
+#[derive(Debug, Parser)]
+#[command(
     name = "randscape-register",
     about = "The landscape-api command that actually works"
 )]
+struct Cli {
+    #[command(subcommand)]
+    command: Command,
+}
+
+#[derive(Debug, Subcommand)]
 enum Command {
-    #[structopt(about = "Get script details")]
+    #[command(about = "Get script details")]
     GetScript {
-        #[structopt(help = "Specify the script name")]
+        #[arg(help = "Specify the script name")]
         title: String,
     },
-    #[structopt(about = "List all scripts")]
+    #[command(about = "List all scripts")]
     GetScripts {},
-    #[structopt(about = "Get script details")]
+    #[command(about = "Get script details")]
     RemoveScriptAttachment {
-        #[structopt(help = "Remove script attachment if found")]
+        #[arg(help = "Remove script attachment if found")]
         title: String,
         script_name: PathBuf,
     },
     CreateScriptAttachment(CreateScriptAttachment),
-    #[structopt(about = "Check the existing attachments")]
+    #[command(about = "Check the existing attachments")]
     GetScriptAttachments {
-        #[structopt(help = "List all the attachment names for given script")]
+        #[arg(help = "List all the attachment names for given script")]
         title: String,
     },
-    #[structopt(about = "Execute the script over the hosts")]
+    #[command(about = "Execute the script over the hosts")]
     ExecuteScript {
-        #[structopt(help = "Script name")]
+        #[arg(help = "Script name")]
         title: String,
-        #[structopt(help = "Query to identify the Landscape hosts")]
+        #[arg(help = "Query to identify the Landscape hosts")]
         query: String,
     },
-    #[structopt(about = "Get information about all registered hosts")]
+    #[command(about = "Get information about all registered hosts")]
     GetAllHosts,
 }
 
 fn main() {
     dotenv().ok();
     let _api = Api::new();
-    let opt = Command::from_args();
+    let opt = Cli::parse().command;
 
     match opt {
         Command::GetScript { title } => {
